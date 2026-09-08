@@ -12,7 +12,7 @@ La aplicación ya tiene configuradas la URL y la clave pública del proyecto `nx
 2. La **Project URL** y la clave pública **publishable** ya están en `.env`. El proceso de compilación genera `dist/config.js`; no edites ese archivo generado.
 3. Abre la aplicación en dos dispositivos. Registra un estudiante y comprueba que aparezca en el otro dentro de tres segundos.
 
-Nunca pongas `service_role`, `sb_secret_...` ni una contraseña de base de datos en `.env`. La aplicación acepta únicamente una clave pública. Como decidiste usarla sin cuentas, toda persona que pueda abrir la aplicación publicada podrá consultar RUT, operar consumos y registrar ventas; mantén privada la URL de la aplicación.
+Nunca pongas `service_role`, `sb_secret_...` ni una contraseña de base de datos en `.env`. La aplicación acepta únicamente una clave pública. `public-config.json` contiene la URL y la clave publishable que el navegador necesita, y puede versionarse porque ambos valores siempre son visibles en una aplicación web. Como decidiste usarla sin cuentas, toda persona que pueda abrir la aplicación publicada podrá consultar RUT, operar consumos y registrar ventas; mantén privada la URL de la aplicación.
 
 Documentación utilizada: [funciones SQL](https://supabase.com/docs/guides/database/functions), [seguridad por fila](https://supabase.com/docs/guides/database/postgres/row-level-security) y [cambios en tiempo real](https://supabase.com/docs/guides/realtime/postgres-changes).
 
