@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fondeando aura</title>
+  <meta name="description" content="Registro de estudiantes por RUT, límite de tres tragos y ventas compartidas de Fondeando AURA.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header-minimal">
+      <div class="top-note">FONDEANDO AURA · PROVIDENCIA · 2026</div>
+      <div class="brand-minimal">
+        <div><h1>AURA</h1><p class="brand-caption">CONTROL DE FIESTA</p></div>
+        <span class="header-year">18 · 09 · 2026</span>
+      </div>
+    </header>
+
+    <div id="appMessage" class="app-message" role="status" aria-live="polite" hidden></div>
+    <div id="legacyPanel" class="app-message warning-message" hidden>
+      Hay datos de la versión anterior en este navegador. Aún no están en Supabase.
+      <button id="btnLegacyBackup" class="btn-sub-minimal">Descargar respaldo anterior</button>
+    </div>
+    <section id="sellerGate" class="seller-gate" aria-labelledby="sellerGateTitle">
+      <div class="seller-gate-card">
+        <div class="section-kicker">ACCESO DE VENTA</div>
+        <h2 id="sellerGateTitle">¿Quién está vendiendo?</h2>
+        <p>Ingresa tu nombre y apellido una sola vez en este dispositivo.</p>
+        <form id="sellerForm">
+          <label for="sellerNameInput" class="field-label">Nombre y apellido</label>
+          <input id="sellerNameInput" class="form-input-minimal" maxlength="120" autocomplete="name" placeholder="Ej: Camila Soto" required>
+          <button type="submit" class="btn-seller-login">Ingresar</button>
+        </form>
+      </div>
+    </section>
+    <div id="workspace" hidden>
+      <div class="session-strip">
+        <span id="connectionStatus" role="status">Conectando…</span>
+        <div class="seller-session"><strong id="activeSeller"></strong><button id="btnChangeSeller" class="btn-sub-minimal">Cambiar vendedora</button><button id="btnRefresh" class="btn-sub-minimal">Actualizar</button></div>
+      </div>
+      <div id="pendingPanel" class="app-message warning-message" hidden>
+        Hay una operación cuyo guardado no se pudo confirmar.
+        <button id="btnRetry" class="btn-sub-minimal">Reintentar guardado</button>
+      </div>
+      <nav class="nav-tabs" aria-label="Secciones">
+        <button id="navTabQueue" class="nav-tab active" aria-pressed="true">🍹 Control de tragos</button>
+        <button id="navTabSales" class="nav-tab" aria-pressed="false">💰 Ventas y caja</button>
+      </nav>
+
+      <div id="tabContentQueue">
+        <main class="queue-card">
+          <div class="queue-header">
+            <div class="queue-title"><h2 class="tag-highlight">Ingreso por RUT</h2><span class="tag-highlight-sm">Máximo 3 tragos</span></div>
+            <p class="queue-subtitle">Consulta al estudiante antes de entregar un trago.</p>
+          </div>
+          <label for="queueRutInput" class="field-label">RUT del estudiante</label>
+          <div class="rut-input-wrapper">
+            <input type="text" id="queueRutInput" class="rut-input-large" placeholder="Ej: 12.345.678-5" autocomplete="off" spellcheck="false" maxlength="14" aria-describedby="rutStatusBadge">
+          </div>
+          <div id="rutStatusBadge" class="rut-status-badge empty" role="status"></div>
+          <div id="resultCard" class="result-card hidden">
+            <div id="viewFound" class="person-found-view" hidden>
+              <div id="foundStatusBanner" class="status-alert-banner safe" role="status"></div>
+              <div class="person-details-row">
+                <div id="foundPersonName" class="person-name-large"></div>
+                <div id="foundPersonCarrera" class="person-carrera-sub"></div>
+                <span id="foundPersonRutSub" class="person-rut"></span>
+              </div>
+              <div id="drinkProgress" class="drink-progress" aria-label="Tragos registrados"></div>
+              <button id="btnGiantAddDrink" class="btn-drink-giant" data-write>Registrar 1 trago</button>
+              <p class="queue-note">Si cobras el trago en Ventas y caja, el conteo se suma allí automáticamente.</p>
+            </div>
+            <div id="viewNew" class="person-new-view" hidden>
+              <div class="new-badge-notice">RUT no registrado. Completa los datos del estudiante.</div>
+              <form id="formQuickRegister">
+                <div class="form-row-minimal">
+                  <div><label for="inputNewName" class="field-label">Nombre completo</label><input type="text" id="inputNewName" class="form-input-minimal" maxlength="120" autocomplete="name" required></div>
+                  <div><label for="inputNewCarrera" class="field-label">Carrera</label><input type="text" id="inputNewCarrera" class="form-input-minimal" maxlength="120" required></div>
+                </div>
+                <button type="submit" name="initial" value="1" class="btn-register-quick" data-write>Registrar y sumar el primer trago</button>
+                <button type="submit" name="initial" value="0" class="btn-register-secondary" data-write>Solo registrar · cobrar después en caja</button>
+              </form>
+            </div>
+          </div>
+          <button id="btnNextStudent" class="btn-sub-minimal next-student">Atender al siguiente estudiante →</button>
+        </main>
+        <section class="secondary-section">
+          <button id="btnToggleDb" class="db-toggle-btn" aria-expanded="false" aria-controls="dbContent">
+            <span>Estudiantes registrados (<span id="dbTotalCount">0</span>)</span><span id="dbToggleIcon" aria-hidden="true">▼</span>
+          </button>
+          <div id="dbContent" class="db-content">
+            <div class="db-toolbar">
+              <input type="search" id="dbSearchInput" class="db-search-input" placeholder="Buscar por nombre, RUT o carrera" aria-label="Buscar estudiantes">
+              <button id="btnDownloadTxt" class="btn-sub-minimal">Descargar lista</button>
+            </div>
+            <div class="table-scroll"><table class="db-table"><thead><tr><th>RUT</th><th>Nombre</th><th>Carrera</th><th>Tragos</th><th>Atender</th></tr></thead><tbody id="dbTableBody"></tbody></table></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="tabContentSales" hidden>
+        <section class="sales-metrics-grid" aria-label="Recaudación de la fiesta">
+          <div class="revenue-card-large"><div><div class="label">Total recaudado</div><div id="salesTotalRevenue" class="value">$0</div></div><span aria-hidden="true">💵</span></div>
+          <div class="revenue-card-large metric-white"><div><div class="label">Ventas confirmadas</div><div id="salesTotalOrders" class="value">0</div></div><span aria-hidden="true">🧾</span></div>
+        </section>
+        <div id="paymentTotals" class="payment-totals"></div>
+        <main class="sales-main-grid">
+          <section class="catalog-container">
+            <h2 class="tag-highlight">Menú de la fonda</h2>
+            <p class="queue-subtitle">Las promociones de 2 por $7.000 se aplican automáticamente.</p>
+            <div id="productsListContainer" class="product-list"></div>
+          </section>
+          <section class="cart-summary-box">
+            <div>
+              <div class="cart-title"><h2>Comanda actual</h2><button id="btnClearCart" class="btn-sub-minimal">Limpiar</button></div>
+              <div id="cartItemsList" class="cart-items-list"></div>
+              <div id="saleStudentSection" hidden>
+                <div class="section-kicker">ESTUDIANTE</div>
+                <label for="saleRutInput" class="field-label">RUT para el terremoto</label>
+                <input id="saleRutInput" type="text" class="form-input-minimal" placeholder="12.345.678-5" autocomplete="off" spellcheck="false" maxlength="14" aria-describedby="saleStudentStatus">
+                <p id="saleStudentStatus" class="queue-note" role="status"></p>
+                <div id="salePersonCard" class="sale-person-card" hidden>
+                  <strong id="salePersonName"></strong>
+                  <span id="salePersonCareer"></span>
+                  <span id="salePersonRut"></span>
+                </div>
+                <form id="saleRegisterForm" class="sale-register-form" hidden>
+                  <p>Este RUT no está registrado. Completa sus datos para continuar.</p>
+                  <label for="saleNewName" class="field-label">Nombre completo</label>
+                  <input id="saleNewName" class="form-input-minimal" maxlength="120" autocomplete="name" required>
+                  <label for="saleNewCareer" class="field-label">Carrera</label>
+                  <input id="saleNewCareer" class="form-input-minimal" maxlength="120" required>
+                  <button type="submit" class="btn-register-secondary" data-write>Registrar estudiante</button>
+                </form>
+                <p class="queue-note">Cada terremoto cuenta como un trago. Una comanda corresponde a un estudiante.</p>
+              </div>
+              <label for="paymentMethod" class="field-label">Medio de pago</label>
+              <select id="paymentMethod" class="form-input-minimal"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option></select>
+            </div>
+            <div>
+              <div class="cart-total-section"><div class="cart-total-row"><span>Total a pagar</span><span id="cartTotalAmount" class="cart-total-amount">$0</span></div></div>
+              <button id="btnConfirmSale" class="btn-confirm-sale" data-write disabled>Confirmar venta</button>
+            </div>
+          </section>
+        </main>
+        <section class="secondary-section">
+          <div class="history-heading"><h2>Ventas recientes</h2><span>Últimas 50 · el total incluye todas</span></div>
+          <div class="table-scroll"><table class="db-table"><thead><tr><th>N.º</th><th>Fecha y hora</th><th>Vendedora</th><th>Productos</th><th>RUT</th><th>Pago</th><th>Total</th></tr></thead><tbody id="salesHistoryTableBody"></tbody></table></div>
+        </section>
+      </div>
+    </div>
+    <noscript>Activa JavaScript para usar el control de tragos y la caja.</noscript>
+  </div>
+  <dialog id="alertModal" class="limit-dialog" aria-labelledby="alertTitle">
+    <div class="alert-box">
+      <div class="alert-box-icon" aria-hidden="true">⛔</div>
+      <h2 id="alertTitle" class="alert-box-title">Límite alcanzado</h2>
+      <p class="alert-box-text"><span id="alertModalName"></span><br>Ya tiene 3 de 3 tragos registrados. No vender más.</p>
+      <button id="alertModalClose" class="btn-alert-close">Entendido</button>
+    </div>
+  </dialog>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
