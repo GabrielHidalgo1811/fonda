@@ -16,7 +16,7 @@ async function fixture(t, configured = true) {
   dom.window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   dom.window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   dom.window.localStorage.setItem('fiestas_seller_name', 'María Pérez');
-  const state = { attendees: [], products: structuredClone(PRODUCTS_CATALOG), transactions: [], totalRevenue: 0, totalOrders: 0, payments: {} };
+  const state = { attendees: [], products: structuredClone(PRODUCTS_CATALOG), transactions: [], productStats: [], totalRevenue: 0, totalOrders: 0, payments: {} };
   const requests = [];
   const cloud = {
     state, connected: configured, pending: null, connectionMessage: 'Actualizado',
@@ -45,6 +45,13 @@ async function fixture(t, configured = true) {
         const transaction = { number: ++state.totalOrders, items, total: items.reduce((s, i) => s + lineTotal(i, i.qty), 0),
           rut: payload.rut, payment: payload.payment, seller: payload.seller, created_at: new Date().toISOString() };
         state.transactions.unshift(transaction);
+        for (const item of items) {
+          let stat = state.productStats.find((product) => product.id === item.id);
+          if (!stat) { stat = { id: item.id, name: item.name, quantity: 0, revenue: 0 }; state.productStats.push(stat); }
+          stat.quantity += item.qty;
+          stat.revenue += lineTotal(item, item.qty);
+        }
+        state.productStats.sort((a, b) => b.quantity - a.quantity);
         state.totalRevenue += transaction.total;
         return { person, transaction, limitReachedJustNow: person?.tragos === 3 };
       }
@@ -129,6 +136,10 @@ test('alta desde caja empieza en cero; promoción suma dos y bloquea otra venta 
   assert.equal(state.totalRevenue, 7000);
   assert.equal(requests[1].kind, 'sale');
   assert.equal(requests[1].payload.seller, 'María Pérez');
+  get('navTabStats').click();
+  assert.equal(get('statsTopProduct').textContent, 'Terremoto');
+  assert.match(get('productStatsList').textContent, /2 unidades/);
+  get('navTabSales').click();
   assert.equal(get('cartTotalAmount').textContent, '$0');
   add('terremoto'); add('terremoto'); input('saleRutInput', '123456785');
   assert.equal(get('btnConfirmSale').disabled, true);

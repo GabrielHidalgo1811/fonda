@@ -7,7 +7,7 @@ const money = (value) => '$' + Number(value).toLocaleString('es-CL');
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let busy = false;
 let cart = {};
-let selectedTab = 'queue';
+let selectedTab = 'sales';
 let lastRut = '';
 let sellerName = '';
 
@@ -47,10 +47,26 @@ function switchTab(tab) {
   selectedTab = tab;
   $('tabContentQueue').hidden = tab !== 'queue';
   $('tabContentSales').hidden = tab !== 'sales';
-  for (const [id, target] of [['navTabQueue', 'queue'], ['navTabSales', 'sales']]) {
+  $('tabContentStats').hidden = tab !== 'stats';
+  for (const [id, target] of [['navTabSales', 'sales'], ['navTabQueue', 'queue'], ['navTabStats', 'stats']]) {
     $(id).classList.toggle('active', target === tab);
     $(id).setAttribute('aria-pressed', String(target === tab));
   }
+}
+
+function renderStats() {
+  const stats = cloud.state.productStats || [];
+  const top = stats[0];
+  $('statsTopProduct').textContent = top ? top.name : 'Sin ventas';
+  $('statsTotalUnits').textContent = stats.reduce((sum, product) => sum + Number(product.quantity), 0).toLocaleString('es-CL');
+  const maximum = Math.max(1, ...stats.map((product) => Number(product.quantity)));
+  $('productStatsList').innerHTML = stats.length ? stats.map((product, index) =>
+    '<div class="stats-row"><div class="stats-product"><span class="stats-rank">#' + (index + 1) + '</span><strong>'
+    + escape(product.name) + '</strong></div><div class="stats-bar" aria-label="' + escape(product.quantity) + ' unidades"><span style="width:'
+    + Math.round(Number(product.quantity) / maximum * 100) + '%"></span></div><div class="stats-number"><strong>'
+    + Number(product.quantity).toLocaleString('es-CL') + '</strong><small> unidades</small></div><div class="stats-number"><strong>'
+    + money(product.revenue) + '</strong><small> recaudado</small></div></div>').join('')
+    : '<p class="empty-cart">Aún no hay ventas para mostrar.</p>';
 }
 
 function renderQueue() {
@@ -159,6 +175,7 @@ function render() {
   renderQueue();
   renderTable();
   renderSales();
+  renderStats();
   writesEnabled();
 }
 async function runMutation(kind, payload) {
@@ -203,6 +220,7 @@ $('btnChangeSeller').addEventListener('click', () => {
 $('btnRetry').addEventListener('click', () => { if (cloud.pending) void runMutation(cloud.pending.kind, cloud.pending.payload); });
 $('navTabQueue').addEventListener('click', () => switchTab('queue'));
 $('navTabSales').addEventListener('click', () => switchTab('sales'));
+$('navTabStats').addEventListener('click', () => switchTab('stats'));
 $('alertModalClose').addEventListener('click', () => $('alertModal').close());
 
 $('queueRutInput').addEventListener('input', () => {

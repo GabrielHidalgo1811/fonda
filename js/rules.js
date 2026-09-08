@@ -7,7 +7,8 @@ export const PRODUCTS_CATALOG = [
   { id: 'choripan', name: 'Choripán', price: 2000, pair_price: null, icon: '🌭', drinks: 0 },
   { id: 'anticucho', name: 'Anticucho', price: 4000, pair_price: 7000, icon: '🍢', drinks: 0 },
   { id: 'terremoto', name: 'Terremoto', price: 4000, pair_price: 7000, icon: '🍹', drinks: 1 },
-  { id: 'bebida', name: 'Bebida (vaso)', price: 2000, pair_price: null, icon: '🥤', drinks: 0 }
+  { id: 'bebida-200', name: 'Bebida 200 ml', price: 300, pair_price: null, icon: '🥤', drinks: 0 },
+  { id: 'bebida-500', name: 'Bebida 500 ml', price: 500, pair_price: null, icon: '🥤', drinks: 0 }
 ];
 
 export function lineTotal(product, qty) {

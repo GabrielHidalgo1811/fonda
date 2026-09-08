@@ -46,7 +46,8 @@ insert into public.fiestas_products(id, name, price, pair_price, icon, drinks, p
 ('choripan', 'Choripán', 2000, null, '🌭', 0, 4),
 ('anticucho', 'Anticucho', 4000, 7000, '🍢', 0, 5),
 ('terremoto', 'Terremoto', 4000, 7000, '🍹', 1, 6),
-('bebida', 'Bebida (vaso)', 2000, null, '🥤', 0, 7);
+('bebida-200', 'Bebida 200 ml', 300, null, '🥤', 0, 7),
+('bebida-500', 'Bebida 500 ml', 500, null, '🥤', 0, 8);
 
 create table public.fiestas_sales (
   id uuid primary key default gen_random_uuid(),
@@ -190,6 +191,11 @@ begin
     'attendees', coalesce((select jsonb_agg(a order by a.created_at desc) from public.fiestas_attendees a), '[]'::jsonb),
     'products', coalesce((select jsonb_agg(p order by p.position) from public.fiestas_products p where active), '[]'::jsonb),
     'transactions', coalesce((select jsonb_agg(s order by s.number desc) from (select * from public.fiestas_sales order by number desc limit 50) s), '[]'::jsonb),
+    'productStats', coalesce((select jsonb_agg(stat order by stat.quantity desc, stat.name)
+      from (select item->>'id' id, max(item->>'name') name,
+        sum((item->>'qty')::integer) quantity, sum((item->>'total')::integer) revenue
+        from public.fiestas_sales cross join lateral jsonb_array_elements(items) item
+        group by item->>'id') stat), '[]'::jsonb),
     'totalRevenue', (select coalesce(sum(total), 0) from public.fiestas_sales),
     'totalOrders', (select count(*) from public.fiestas_sales),
     'payments', (select coalesce(jsonb_object_agg(payment, amount), '{}'::jsonb)

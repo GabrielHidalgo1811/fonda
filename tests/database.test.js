@@ -122,11 +122,12 @@ test('Migración y reglas reales de PostgreSQL', async (t) => {
 
   await t.test('los totales incluyen más que las últimas 50 ventas', async () => {
     const before = await snapshot();
-    for (let i = 0; i < 51; i++) await operate('sale', { payment: 'efectivo', seller: SELLER, items: [{ id: 'bebida', qty: 1 }] });
+    for (let i = 0; i < 51; i++) await operate('sale', { payment: 'efectivo', seller: SELLER, items: [{ id: 'bebida-200', qty: 1 }] });
     const after = await snapshot();
     assert.equal(after.transactions.length, 50);
     assert.equal(after.totalOrders, before.totalOrders + 51);
-    assert.equal(after.totalRevenue, before.totalRevenue + 102000);
+    assert.equal(after.totalRevenue, before.totalRevenue + 15300);
+    assert.ok(after.productStats.some((product) => product.id === 'bebida-200' && product.quantity >= 51));
   });
 
   await t.test('la clave pública puede usar las funciones pero no cambiar tablas directamente', async () => {

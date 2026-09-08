@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const emptyState = () => ({ attendees: [], products: [], transactions: [], totalRevenue: 0, totalOrders: 0, payments: {} });
+export const emptyState = () => ({ attendees: [], products: [], transactions: [], productStats: [], totalRevenue: 0, totalOrders: 0, payments: {} });
 let client = null;
 let timer = null;
 let realtimeChannel = null;
