@@ -95,6 +95,8 @@ test('Migración y reglas reales de PostgreSQL', async (t) => {
     assert.equal(data.totalOrders, 1);
     assert.equal(data.payments.transferencia, 9800);
     assert.equal(data.attendees.find((p) => p.id === person.id).tragos, 2);
+    assert.ok(data.sellerStats.some((seller) => seller.seller === SELLER && seller.orders >= 1 && seller.revenue >= 9800));
+    assert.ok(data.sellerProductStats.some((product) => product.seller === SELLER && product.id === 'terremoto' && product.quantity >= 2));
   });
 
   await t.test('venta que excede el límite se rechaza completa y no aumenta la caja', async () => {

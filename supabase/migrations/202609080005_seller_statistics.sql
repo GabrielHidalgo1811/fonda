@@ -1,19 +1,5 @@
--- Ejecuta una vez en Supabase > SQL Editor para actualizar precios y estadísticas.
+-- Ejecuta una vez en Supabase > SQL Editor para habilitar estadísticas por vendedora.
 begin;
-
-update public.fiestas_products set active = false where id = 'bebida';
-
-insert into public.fiestas_products(id, name, price, pair_price, icon, drinks, active, position) values
-  ('bebida-200', 'Bebida 200 ml', 300, null, '🥤', 0, true, 7),
-  ('bebida-500', 'Bebida 500 ml', 500, null, '🥤', 0, true, 8)
-on conflict (id) do update set
-  name = excluded.name,
-  price = excluded.price,
-  pair_price = excluded.pair_price,
-  icon = excluded.icon,
-  drinks = excluded.drinks,
-  active = excluded.active,
-  position = excluded.position;
 
 create or replace function public.fiestas_snapshot() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$

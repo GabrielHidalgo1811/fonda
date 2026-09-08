@@ -55,10 +55,18 @@ function switchTab(tab) {
 }
 
 function renderStats() {
-  const stats = cloud.state.productStats || [];
-  const top = stats[0];
-  $('statsTopProduct').textContent = top ? top.name : 'Sin ventas';
-  $('statsTotalUnits').textContent = stats.reduce((sum, product) => sum + Number(product.quantity), 0).toLocaleString('es-CL');
+  const sellers = cloud.state.sellerStats || [];
+  const sellerProducts = cloud.state.sellerProductStats || [];
+  const previousFilter = $('statsSellerFilter').value;
+  $('statsSellerFilter').innerHTML = '<option value="">Todas las vendedoras</option>' + sellers.map((seller) =>
+    '<option value="' + escape(seller.seller) + '">' + escape(seller.seller) + '</option>').join('');
+  $('statsSellerFilter').value = sellers.some((seller) => seller.seller === previousFilter) ? previousFilter : '';
+  const selectedSeller = $('statsSellerFilter').value;
+  const summary = sellers.find((seller) => seller.seller === selectedSeller);
+  const stats = selectedSeller ? sellerProducts.filter((product) => product.seller === selectedSeller) : (cloud.state.productStats || []);
+  $('statsRevenue').textContent = money(summary ? summary.revenue : cloud.state.totalRevenue);
+  $('statsOrders').textContent = Number(summary ? summary.orders : cloud.state.totalOrders).toLocaleString('es-CL');
+  $('statsProductsTitle').textContent = selectedSeller ? 'Productos vendidos por ' + selectedSeller : 'Productos más vendidos';
   const maximum = Math.max(1, ...stats.map((product) => Number(product.quantity)));
   $('productStatsList').innerHTML = stats.length ? stats.map((product, index) =>
     '<div class="stats-row"><div class="stats-product"><span class="stats-rank">#' + (index + 1) + '</span><strong>'
@@ -67,6 +75,12 @@ function renderStats() {
     + Number(product.quantity).toLocaleString('es-CL') + '</strong><small> unidades</small></div><div class="stats-number"><strong>'
     + money(product.revenue) + '</strong><small> recaudado</small></div></div>').join('')
     : '<p class="empty-cart">Aún no hay ventas para mostrar.</p>';
+  $('sellerStatsTableBody').innerHTML = sellers.length ? sellers.map((seller) => {
+    const products = sellerProducts.filter((product) => product.seller === seller.seller);
+    return '<tr><td><strong>' + escape(seller.seller) + '</strong></td><td>' + Number(seller.orders).toLocaleString('es-CL')
+      + '</td><td>' + Number(seller.units).toLocaleString('es-CL') + '</td><td><strong>' + money(seller.revenue)
+      + '</strong></td><td>' + escape(products[0]?.name || '—') + '</td></tr>';
+  }).join('') : '<tr><td colspan="5">Aún no hay ventas confirmadas.</td></tr>';
 }
 
 function renderQueue() {
@@ -221,6 +235,7 @@ $('btnRetry').addEventListener('click', () => { if (cloud.pending) void runMutat
 $('navTabQueue').addEventListener('click', () => switchTab('queue'));
 $('navTabSales').addEventListener('click', () => switchTab('sales'));
 $('navTabStats').addEventListener('click', () => switchTab('stats'));
+$('statsSellerFilter').addEventListener('change', renderStats);
 $('alertModalClose').addEventListener('click', () => $('alertModal').close());
 
 $('queueRutInput').addEventListener('input', () => {

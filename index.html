@@ -154,17 +154,20 @@
       </div>
       <div id="tabContentStats" hidden>
         <section class="stats-hero">
-          <div class="section-kicker">RESUMEN EN VIVO</div>
-          <h2>Productos más vendidos</h2>
-          <p>Las cantidades y la recaudación incluyen todas las ventas registradas.</p>
+          <div><div class="section-kicker">RESUMEN EN VIVO</div><h2>Estadísticas</h2><p>Las cantidades y la recaudación incluyen todas las ventas registradas.</p></div>
+          <div class="stats-filter"><label for="statsSellerFilter" class="field-label">Filtrar por vendedora</label><select id="statsSellerFilter" class="form-input-minimal"><option value="">Todas las vendedoras</option></select></div>
         </section>
         <section class="sales-metrics-grid" aria-label="Resumen de estadísticas">
-          <div class="revenue-card-large"><div><div class="label">Producto líder</div><div id="statsTopProduct" class="stats-leader">Sin ventas</div></div><span aria-hidden="true">🏆</span></div>
-          <div class="revenue-card-large metric-white"><div><div class="label">Unidades vendidas</div><div id="statsTotalUnits" class="value">0</div></div><span aria-hidden="true">📦</span></div>
+          <div class="revenue-card-large"><div><div class="label">Recaudación</div><div id="statsRevenue" class="value">$0</div></div><span aria-hidden="true">💵</span></div>
+          <div class="revenue-card-large metric-white"><div><div class="label">Ventas confirmadas</div><div id="statsOrders" class="value">0</div></div><span aria-hidden="true">🧾</span></div>
         </section>
         <section class="secondary-section stats-table-section">
-          <div class="history-heading"><h2>Detalle por producto</h2><span>Ordenado por unidades</span></div>
+          <div class="history-heading"><h2 id="statsProductsTitle">Productos más vendidos</h2><span>Ordenado por unidades</span></div>
           <div id="productStatsList" class="stats-list"></div>
+        </section>
+        <section class="secondary-section stats-table-section">
+          <div class="history-heading"><h2>Desglose por vendedora</h2><span>Ventas y recaudación total</span></div>
+          <div class="table-scroll"><table class="db-table"><thead><tr><th>Vendedora</th><th>Ventas</th><th>Unidades</th><th>Recaudación</th><th>Producto líder</th></tr></thead><tbody id="sellerStatsTableBody"></tbody></table></div>
         </section>
       </div>
     </div>

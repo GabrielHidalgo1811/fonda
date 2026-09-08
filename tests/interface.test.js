@@ -16,7 +16,7 @@ async function fixture(t, configured = true) {
   dom.window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   dom.window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   dom.window.localStorage.setItem('fiestas_seller_name', 'María Pérez');
-  const state = { attendees: [], products: structuredClone(PRODUCTS_CATALOG), transactions: [], productStats: [], totalRevenue: 0, totalOrders: 0, payments: {} };
+  const state = { attendees: [], products: structuredClone(PRODUCTS_CATALOG), transactions: [], productStats: [], sellerStats: [], sellerProductStats: [], totalRevenue: 0, totalOrders: 0, payments: {} };
   const requests = [];
   const cloud = {
     state, connected: configured, pending: null, connectionMessage: 'Actualizado',
@@ -50,8 +50,18 @@ async function fixture(t, configured = true) {
           if (!stat) { stat = { id: item.id, name: item.name, quantity: 0, revenue: 0 }; state.productStats.push(stat); }
           stat.quantity += item.qty;
           stat.revenue += lineTotal(item, item.qty);
+          let sellerProduct = state.sellerProductStats.find((product) => product.seller === payload.seller && product.id === item.id);
+          if (!sellerProduct) { sellerProduct = { seller: payload.seller, id: item.id, name: item.name, quantity: 0, revenue: 0 }; state.sellerProductStats.push(sellerProduct); }
+          sellerProduct.quantity += item.qty;
+          sellerProduct.revenue += lineTotal(item, item.qty);
         }
         state.productStats.sort((a, b) => b.quantity - a.quantity);
+        state.sellerProductStats.sort((a, b) => a.seller.localeCompare(b.seller) || b.quantity - a.quantity);
+        let sellerStat = state.sellerStats.find((seller) => seller.seller === payload.seller);
+        if (!sellerStat) { sellerStat = { seller: payload.seller, orders: 0, units: 0, revenue: 0 }; state.sellerStats.push(sellerStat); }
+        sellerStat.orders++;
+        sellerStat.units += items.reduce((sum, item) => sum + item.qty, 0);
+        sellerStat.revenue += transaction.total;
         state.totalRevenue += transaction.total;
         return { person, transaction, limitReachedJustNow: person?.tragos === 3 };
       }
@@ -115,7 +125,7 @@ test('registro por RUT, tres tragos, alerta y bloqueo desde la interfaz', async 
 });
 
 test('alta desde caja empieza en cero; promoción suma dos y bloquea otra venta de dos', async (t) => {
-  const { get, input, add, state, requests, cloud } = await fixture(t);
+  const { dom, get, input, add, state, requests, cloud } = await fixture(t);
   get('navTabSales').click();
   add('terremoto'); add('terremoto');
   assert.equal(get('cartTotalAmount').textContent, '$7.000');
@@ -137,8 +147,13 @@ test('alta desde caja empieza en cero; promoción suma dos y bloquea otra venta 
   assert.equal(requests[1].kind, 'sale');
   assert.equal(requests[1].payload.seller, 'María Pérez');
   get('navTabStats').click();
-  assert.equal(get('statsTopProduct').textContent, 'Terremoto');
+  assert.equal(get('statsRevenue').textContent, '$7.000');
+  assert.equal(get('statsOrders').textContent, '1');
   assert.match(get('productStatsList').textContent, /2 unidades/);
+  get('statsSellerFilter').value = 'María Pérez';
+  get('statsSellerFilter').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  assert.match(get('statsProductsTitle').textContent, /María Pérez/);
+  assert.match(get('sellerStatsTableBody').textContent, /María Pérez/);
   get('navTabSales').click();
   assert.equal(get('cartTotalAmount').textContent, '$0');
   add('terremoto'); add('terremoto'); input('saleRutInput', '123456785');

@@ -174,9 +174,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .history-heading { display: flex; justify-content: space-between; gap: 15px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .history-heading h2 { font-size: .9rem; letter-spacing: .1em; text-transform: uppercase; }
 .history-heading span { color: var(--muted); font-size: .75rem; }
-.stats-hero { padding: clamp(30px, 6vw, 64px); margin-bottom: 18px; background: var(--white); border: 1px solid var(--ink); }
+.stats-hero { padding: clamp(30px, 6vw, 64px); margin-bottom: 18px; display: grid; grid-template-columns: 1.4fr minmax(220px, .6fr); align-items: end; gap: 40px; background: var(--white); border: 1px solid var(--ink); }
 .stats-hero h2 { margin-top: 8px; font-size: clamp(2.2rem, 6vw, 5rem); line-height: .92; letter-spacing: -.055em; text-transform: uppercase; }
 .stats-hero p { margin-top: 14px; color: var(--muted); }
+.stats-filter select { background: var(--white); }
 .stats-leader { max-width: 480px; font-size: clamp(1.8rem, 4vw, 3.5rem); line-height: 1; letter-spacing: -.04em; }
 .stats-list { padding: 6px 24px 24px; }
 .stats-row { display: grid; grid-template-columns: minmax(150px, 1.3fr) minmax(180px, 2fr) auto auto; align-items: center; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
@@ -217,4 +218,5 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .nav-tab { font-size: .64rem; }
   .stats-row { grid-template-columns: 1fr auto; }
   .stats-bar { grid-column: 1 / -1; grid-row: 2; }
+  .stats-hero { grid-template-columns: 1fr; gap: 18px; }
 }

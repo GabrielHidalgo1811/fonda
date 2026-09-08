@@ -196,6 +196,16 @@ begin
         sum((item->>'qty')::integer) quantity, sum((item->>'total')::integer) revenue
         from public.fiestas_sales cross join lateral jsonb_array_elements(items) item
         group by item->>'id') stat), '[]'::jsonb),
+    'sellerStats', coalesce((select jsonb_agg(stat order by stat.revenue desc, stat.seller)
+      from (select s.seller, count(*) orders, sum(s.total) revenue,
+        (select coalesce(sum((item->>'qty')::integer), 0) from public.fiestas_sales sx
+          cross join lateral jsonb_array_elements(sx.items) item where sx.seller = s.seller) units
+        from public.fiestas_sales s group by s.seller) stat), '[]'::jsonb),
+    'sellerProductStats', coalesce((select jsonb_agg(stat order by stat.seller, stat.quantity desc, stat.name)
+      from (select s.seller, item->>'id' id, max(item->>'name') name,
+        sum((item->>'qty')::integer) quantity, sum((item->>'total')::integer) revenue
+        from public.fiestas_sales s cross join lateral jsonb_array_elements(s.items) item
+        group by s.seller, item->>'id') stat), '[]'::jsonb),
     'totalRevenue', (select coalesce(sum(total), 0) from public.fiestas_sales),
     'totalOrders', (select count(*) from public.fiestas_sales),
     'payments', (select coalesce(jsonb_object_agg(payment, amount), '{}'::jsonb)
