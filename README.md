@@ -75,3 +75,4 @@ npm run build
 ```
 
 Las pruebas ejecutan la migración y las funciones SQL en PostgreSQL mediante PGlite: validación y unicidad de RUT, registro, límite, reintentos, promociones, ventas atómicas, totales históricos y permisos. Son pruebas locales; la concurrencia entre conexiones reales y la entrega de eventos Realtime deben comprobarse en el proyecto de Supabase una vez conectado.
+
