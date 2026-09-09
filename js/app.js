@@ -287,6 +287,33 @@ $('btnDownloadTxt').addEventListener('click', () => {
   document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 });
+$('btnDownloadSales').addEventListener('click', async () => {
+  if (busy) return;
+  busy = true; writesEnabled(); message('Preparando archivo para Excel…');
+  try {
+    const sales = await cloud.getSalesExport();
+    const csvCell = (value) => {
+      let text = String(value ?? '');
+      if (/^[=+\-@]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+    const rows = [['Vendedora', 'Fecha', 'Productos', 'Monto']];
+    for (const sale of sales) rows.push([
+      sale.seller || 'Sin registro',
+      new Date(sale.created_at).toLocaleString('es-CL'),
+      sale.items.map((item) => item.name + ' × ' + item.qty).join(', '),
+      sale.total
+    ]);
+    const content = '\ufeff' + rows.map((row) => row.map(csvCell).join(';')).join('\r\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+    link.download = 'ventas-fondeando-aura-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    message('Archivo de ventas descargado · ' + sales.length + ' registros.');
+  } catch (error) { message(error.message, true); }
+  finally { busy = false; render(); }
+});
 $('productsListContainer').addEventListener('click', (event) => {
   const button = event.target.closest('[data-cart]');
   if (!button || button.disabled || busy || cloud.pending) return;

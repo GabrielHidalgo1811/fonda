@@ -171,7 +171,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .sale-person-card span { color: #aaa; font-size: .82rem; }
 .sale-register-form { margin-top: 16px; padding: 18px; border: 1px solid #555; }
 .sale-register-form p { color: #ccc; font-size: .84rem; }
-.history-heading { display: flex; justify-content: space-between; gap: 15px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.history-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .history-heading h2 { font-size: .9rem; letter-spacing: .1em; text-transform: uppercase; }
 .history-heading span { color: var(--muted); font-size: .75rem; }
 .stats-hero { padding: clamp(30px, 6vw, 64px); margin-bottom: 18px; display: grid; grid-template-columns: 1.4fr minmax(220px, .6fr); align-items: end; gap: 40px; background: var(--white); border: 1px solid var(--ink); }

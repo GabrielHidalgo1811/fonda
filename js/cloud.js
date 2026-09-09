@@ -74,6 +74,7 @@ export async function initialize(config) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fiestas_attendees' }, () => void refresh())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fiestas_products' }, () => void refresh())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fiestas_sales' }, () => void refresh())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fiestas_adjustments' }, () => void refresh())
     .subscribe();
   clearInterval(timer);
   timer = setInterval(() => { if (!document.hidden) void refresh(); }, 3000);
@@ -102,4 +103,11 @@ export async function operate(kind, payload) {
     await refresh();
     throw new Error(error.message || 'No se pudo guardar la operación.');
   } finally { changed(); }
+}
+
+export async function getSalesExport() {
+  if (!client || !connected) throw new Error('No se pudo conectar con Supabase.');
+  const { data, error } = await client.rpc('fiestas_sales_export');
+  if (error) throw new Error(error.message || 'No se pudo preparar el archivo.');
+  return data || [];
 }

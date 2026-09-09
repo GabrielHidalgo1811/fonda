@@ -141,4 +141,14 @@ test('Migración y reglas reales de PostgreSQL', async (t) => {
     await assert.rejects(db.query('delete from public.fiestas_sales'), /permission denied/);
     await db.exec('reset role');
   });
+
+  await t.test('el ajuste baja la caja sin modificar ventas y aparece en la exportación', async () => {
+    const before = await snapshot();
+    await db.exec(await readFile(new URL('../supabase/migrations/202609090001_cash_adjustment_and_export.sql', import.meta.url), 'utf8'));
+    const after = await snapshot();
+    assert.equal(after.totalRevenue, before.totalRevenue - 7100);
+    assert.equal(after.totalOrders, before.totalOrders);
+    const exported = (await db.query('select public.fiestas_sales_export() rows')).rows[0].rows;
+    assert.ok(exported.some((row) => row.seller === 'Ajuste de caja' && row.total === -7100));
+  });
 });

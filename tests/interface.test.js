@@ -23,6 +23,7 @@ async function fixture(t, configured = true) {
     getConfig: () => configured ? { supabaseUrl: 'https://example.supabase.co', supabaseKey: 'public-test' } : null,
     initialize: async () => {}, subscribe: (fn) => { cloud.notify = fn; },
     refresh: async () => {},
+    getSalesExport: async () => state.transactions,
     operate: async (kind, payload) => {
       requests.push({ kind, payload });
       if (kind === 'register') {
