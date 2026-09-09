@@ -22,10 +22,11 @@ Usa Node.js 22 o superior:
 
 ```powershell
 npm install
-npm start
+npm run build
+npx serve dist
 ```
 
-Abre `http://127.0.0.1:8080`. `npm start` compila antes de servir la aplicación. No abras `index.html` directamente.
+Abre la dirección local que muestre `serve`. No abras `index.html` directamente.
 
 Para preparar el sitio para alojamiento estático HTTPS:
 
