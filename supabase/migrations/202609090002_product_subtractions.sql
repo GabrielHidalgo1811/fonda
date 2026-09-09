@@ -1,92 +1,24 @@
--- Run once in the Supabase SQL Editor. No existing tables are removed.
+-- Ejecuta una vez en Supabase > SQL Editor para activar las restas por producto.
 begin;
 
-create function public.fiestas_clean_rut(value text) returns text
-language sql immutable set search_path = '' as $$
-  select upper(regexp_replace(coalesce(value, ''), '[.[:space:]-]', '', 'g'));
-$$;
-
-create function public.fiestas_valid_rut(value text) returns boolean
-language plpgsql immutable set search_path = '' as $$
-declare r text := public.fiestas_clean_rut(value); total integer := 0;
-  factor integer := 2; digit integer; expected text; i integer;
-begin
-  if r !~ '^[1-9][0-9]{6,7}[0-9K]$' then return false; end if;
-  for i in reverse length(r)-1..1 loop
-    total := total + substring(r, i, 1)::integer * factor;
-    factor := case when factor = 7 then 2 else factor + 1 end;
-  end loop;
-  digit := 11 - (total % 11);
-  expected := case digit when 11 then '0' when 10 then 'K' else digit::text end;
-  return right(r, 1) = expected;
-end;
-$$;
-
-create table public.fiestas_attendees (
-  id uuid primary key default gen_random_uuid(),
-  rut text not null unique check (rut = public.fiestas_clean_rut(rut) and public.fiestas_valid_rut(rut)),
-  nombre text not null check (length(trim(nombre)) between 1 and 120),
-  carrera text not null check (length(trim(carrera)) between 1 and 120),
-  tragos integer not null default 0 check (tragos between 0 and 3),
-  created_at timestamptz not null default now()
-);
-
-create table public.fiestas_products (
-  id text primary key, name text not null,
-  price integer not null check (price > 0),
-  pair_price integer check (pair_price > 0),
-  icon text not null, drinks integer not null check (drinks in (0, 1)),
-  active boolean not null default true, position integer not null
-);
-
-insert into public.fiestas_products(id, name, price, pair_price, icon, drinks, position) values
-('empanada-pino', 'Empanada de pino', 2800, null, '🥟', 0, 1),
-('empanada-queso', 'Empanada de queso', 2500, null, '🧀', 0, 2),
-('mote', 'Mote con huesillo', 2500, null, '🥤', 0, 3),
-('choripan', 'Choripán', 2000, null, '🌭', 0, 4),
-('anticucho', 'Anticucho', 4000, 7000, '🍢', 0, 5),
-('terremoto', 'Terremoto', 4000, 7000, '🍹', 1, 6),
-('bebida-200', 'Bebida 200 ml', 300, null, '🥤', 0, 7),
-('bebida-500', 'Bebida 500 ml', 500, null, '🥤', 0, 8);
-
-create table public.fiestas_sales (
-  id uuid primary key default gen_random_uuid(),
-  number bigint generated always as identity unique,
-  items jsonb not null,
-  total integer not null check (total <> 0),
-  attendee_id uuid references public.fiestas_attendees(id),
-  rut text,
+create table if not exists public.fiestas_adjustments (
+  id text primary key,
+  amount integer not null check (amount > 0),
+  reason text not null check (length(trim(reason)) between 1 and 120),
   payment text not null check (payment in ('efectivo', 'transferencia', 'tarjeta')),
-  seller text not null check (length(trim(seller)) between 3 and 120),
-  transaction_type text not null default 'sale' check (transaction_type in ('sale', 'subtraction')),
   created_at timestamptz not null default now()
 );
 
-create table public.fiestas_drink_movements (
-  id uuid primary key default gen_random_uuid(),
-  attendee_id uuid not null references public.fiestas_attendees(id),
-  quantity integer not null check (quantity between 1 and 3),
-  source text not null check (source in ('registro', 'manual', 'venta')),
-  sale_id uuid references public.fiestas_sales(id),
-  created_at timestamptz not null default now()
-);
+alter table public.fiestas_sales add column if not exists transaction_type text not null default 'sale';
+alter table public.fiestas_sales drop constraint if exists fiestas_sales_total_check;
+alter table public.fiestas_sales drop constraint if exists fiestas_sales_transaction_type_check;
+alter table public.fiestas_sales add constraint fiestas_sales_total_check check (total <> 0);
+alter table public.fiestas_sales add constraint fiestas_sales_transaction_type_check
+  check (transaction_type in ('sale', 'subtraction'));
 
-create table public.fiestas_operations (
-  id uuid primary key,
-  kind text not null, payload jsonb not null, result jsonb not null,
-  created_at timestamptz not null default now()
-);
-
--- The public key can only call the two controlled functions below.
-alter table public.fiestas_attendees enable row level security;
-alter table public.fiestas_products enable row level security;
-alter table public.fiestas_sales enable row level security;
-alter table public.fiestas_drink_movements enable row level security;
-alter table public.fiestas_operations enable row level security;
-revoke all on public.fiestas_attendees, public.fiestas_products,
-  public.fiestas_sales, public.fiestas_drink_movements, public.fiestas_operations from anon, authenticated;
-
-create function public.fiestas_operate(p_key uuid, p_kind text, p_payload jsonb) returns jsonb
+-- El ajuste general se reemplaza por restas detalladas para que no se descuente dos veces.
+delete from public.fiestas_adjustments where id = 'ajuste-caja-7100-20260909';
+create or replace function public.fiestas_operate(p_key uuid, p_kind text, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   previous public.fiestas_operations%rowtype;
@@ -192,7 +124,7 @@ begin
 end;
 $$;
 
-create function public.fiestas_snapshot() returns jsonb
+create or replace function public.fiestas_snapshot() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare result jsonb;
 begin
@@ -206,7 +138,7 @@ begin
         from public.fiestas_sales cross join lateral jsonb_array_elements(items) item
         group by item->>'id') stat), '[]'::jsonb),
     'sellerStats', coalesce((select jsonb_agg(stat order by stat.revenue desc, stat.seller)
-      from (select s.seller, count(*) orders, sum(s.total) revenue,
+      from (select s.seller, count(*) filter (where s.transaction_type = 'sale') orders, sum(s.total) revenue,
         (select coalesce(sum((item->>'qty')::integer), 0) from public.fiestas_sales sx
           cross join lateral jsonb_array_elements(sx.items) item where sx.seller = s.seller) units
         from public.fiestas_sales s group by s.seller) stat), '[]'::jsonb),
@@ -215,28 +147,37 @@ begin
         sum((item->>'qty')::integer) quantity, sum((item->>'total')::integer) revenue
         from public.fiestas_sales s cross join lateral jsonb_array_elements(s.items) item
         group by s.seller, item->>'id') stat), '[]'::jsonb),
-    'totalRevenue', (select coalesce(sum(total), 0) from public.fiestas_sales),
-    'totalOrders', (select count(*) from public.fiestas_sales),
-    'payments', (select coalesce(jsonb_object_agg(payment, amount), '{}'::jsonb)
-      from (select payment, sum(total) amount from public.fiestas_sales group by payment) totals)
+    'totalRevenue', (select coalesce(sum(total), 0) from public.fiestas_sales)
+      - (select coalesce(sum(amount), 0) from public.fiestas_adjustments),
+    'totalOrders', (select count(*) from public.fiestas_sales where transaction_type = 'sale'),
+    'payments', (select coalesce(jsonb_object_agg(payment, amount), '{}'::jsonb) from (
+      select payment, sum(amount) amount from (
+        select payment, total amount from public.fiestas_sales
+        union all
+        select payment, -amount from public.fiestas_adjustments
+      ) movements group by payment
+    ) totals)
   ) into result;
   return result;
 end;
 $$;
 
-revoke all on function public.fiestas_clean_rut(text), public.fiestas_valid_rut(text),
-  public.fiestas_operate(uuid, text, jsonb), public.fiestas_snapshot() from public, anon, authenticated;
-grant execute on function public.fiestas_operate(uuid, text, jsonb), public.fiestas_snapshot() to anon, authenticated;
+create or replace function public.fiestas_sales_export() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(row_data order by created_at), '[]'::jsonb)
+  from (
+    select seller, created_at, items, total, transaction_type
+    from public.fiestas_sales
+    union all
+    select 'Ajuste de caja' seller, created_at,
+      jsonb_build_array(jsonb_build_object('name', reason, 'qty', 1)) items,
+      -amount total, 'adjustment' transaction_type
+    from public.fiestas_adjustments
+  ) row_data;
+$$;
+revoke all on function public.fiestas_operate(uuid, text, jsonb), public.fiestas_snapshot(),
+  public.fiestas_sales_export() from public, anon, authenticated;
+grant execute on function public.fiestas_operate(uuid, text, jsonb), public.fiestas_snapshot(),
+  public.fiestas_sales_export() to anon, authenticated;
 
--- Realtime can read the same current data already exposed by fiestas_snapshot().
-grant select on public.fiestas_attendees, public.fiestas_products, public.fiestas_sales to anon, authenticated;
-create policy fiestas_realtime_attendees on public.fiestas_attendees for select to anon, authenticated using (true);
-create policy fiestas_realtime_products on public.fiestas_products for select to anon, authenticated using (true);
-create policy fiestas_realtime_sales on public.fiestas_sales for select to anon, authenticated using (true);
-do $$
-begin
-  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    alter publication supabase_realtime add table public.fiestas_attendees, public.fiestas_products, public.fiestas_sales;
-  end if;
-end $$;
 commit;

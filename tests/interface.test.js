@@ -37,34 +37,37 @@ async function fixture(t, configured = true) {
         person.tragos++;
         return { person, limitReachedJustNow: person.tragos === 3 };
       }
-      if (kind === 'sale') {
+      if (kind === 'sale' || kind === 'subtract') {
+        const subtracting = kind === 'subtract';
         const person = state.attendees.find((p) => p.rut === payload.rut);
-        const items = payload.items.map((i) => ({ ...state.products.find((p) => p.id === i.id), qty: i.qty }));
+        const items = payload.items.map((i) => ({ ...state.products.find((p) => p.id === i.id), qty: subtracting ? -i.qty : i.qty }));
         const drinks = items.reduce((s, i) => s + i.qty * i.drinks, 0);
-        if (drinks && (!person || person.tragos + drinks > 3)) throw new Error('Venta bloqueada');
-        if (person) person.tragos += drinks;
-        const transaction = { number: ++state.totalOrders, items, total: items.reduce((s, i) => s + lineTotal(i, i.qty), 0),
-          rut: payload.rut, payment: payload.payment, seller: payload.seller, created_at: new Date().toISOString() };
+        if (!subtracting && drinks && (!person || person.tragos + drinks > 3)) throw new Error('Venta bloqueada');
+        if (!subtracting && person) person.tragos += drinks;
+        const total = payload.items.reduce((s, i) => s + lineTotal(state.products.find((p) => p.id === i.id), i.qty), 0) * (subtracting ? -1 : 1);
+        if (!subtracting) state.totalOrders++;
+        const transaction = { number: state.transactions.length + 1, items, total,
+          rut: payload.rut, payment: payload.payment, seller: payload.seller, transaction_type: subtracting ? 'subtraction' : 'sale', created_at: new Date().toISOString() };
         state.transactions.unshift(transaction);
         for (const item of items) {
           let stat = state.productStats.find((product) => product.id === item.id);
           if (!stat) { stat = { id: item.id, name: item.name, quantity: 0, revenue: 0 }; state.productStats.push(stat); }
           stat.quantity += item.qty;
-          stat.revenue += lineTotal(item, item.qty);
+          stat.revenue += subtracting ? -lineTotal(item, Math.abs(item.qty)) : lineTotal(item, item.qty);
           let sellerProduct = state.sellerProductStats.find((product) => product.seller === payload.seller && product.id === item.id);
           if (!sellerProduct) { sellerProduct = { seller: payload.seller, id: item.id, name: item.name, quantity: 0, revenue: 0 }; state.sellerProductStats.push(sellerProduct); }
           sellerProduct.quantity += item.qty;
-          sellerProduct.revenue += lineTotal(item, item.qty);
+          sellerProduct.revenue += subtracting ? -lineTotal(item, Math.abs(item.qty)) : lineTotal(item, item.qty);
         }
         state.productStats.sort((a, b) => b.quantity - a.quantity);
         state.sellerProductStats.sort((a, b) => a.seller.localeCompare(b.seller) || b.quantity - a.quantity);
         let sellerStat = state.sellerStats.find((seller) => seller.seller === payload.seller);
         if (!sellerStat) { sellerStat = { seller: payload.seller, orders: 0, units: 0, revenue: 0 }; state.sellerStats.push(sellerStat); }
-        sellerStat.orders++;
+        if (!subtracting) sellerStat.orders++;
         sellerStat.units += items.reduce((sum, item) => sum + item.qty, 0);
         sellerStat.revenue += transaction.total;
         state.totalRevenue += transaction.total;
-        return { person, transaction, limitReachedJustNow: person?.tragos === 3 };
+        return { person: subtracting ? null : person, transaction, limitReachedJustNow: !subtracting && person?.tragos === 3 };
       }
     }
   };
@@ -165,4 +168,20 @@ test('alta desde caja empieza en cero; promoción suma dos y bloquea otra venta 
   assert.equal(get('btnConfirmSale').disabled, false);
   cloud.connected = false; cloud.notify();
   assert.equal(get('btnConfirmSale').disabled, true);
+});
+
+test('modo resta registra productos y montos negativos sin pedir RUT', async (t) => {
+  const { get, add, state, requests } = await fixture(t);
+  get('btnToggleSubtract').click();
+  add('terremoto');
+  assert.equal(get('saleStudentSection').hidden, true);
+  assert.equal(get('cartTotalAmount').textContent, '-$4.000');
+  assert.equal(get('btnConfirmSale').textContent, 'Registrar resta');
+  get('btnConfirmSale').click();
+  await settle();
+  assert.equal(requests[0].kind, 'subtract');
+  assert.equal(state.transactions[0].total, -4000);
+  assert.equal(state.transactions[0].items[0].qty, -1);
+  assert.equal(state.totalOrders, 0);
+  assert.match(get('salesHistoryTableBody').textContent, /RESTA/);
 });

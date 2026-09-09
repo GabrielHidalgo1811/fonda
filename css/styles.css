@@ -159,6 +159,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .cart-title, .cart-total-row, .cart-item-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cart-title { padding-bottom: 16px; border-bottom: 1px solid #555; }
 .cart-title h2 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .08em; }
+.btn-subtract-mode { width: 100%; margin-top: 14px; padding: 11px 14px; border: 1px solid #888; background: transparent; color: white; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.btn-subtract-mode.active { border-color: #ff8585; background: #7d1f1f; }
+.subtract-mode-note { margin-top: 12px; color: #ffb3b3; font-size: .8rem; }
+.cart-summary-box.subtract-mode { background: #250c0c; border-color: var(--danger); }
+.negative-amount { color: #c92f2f; }
 .cart-items-list { min-height: 100px; padding: 18px 0; }
 .cart-item-row { padding: 8px 0; border-bottom: 1px solid #333; font-size: .86rem; }
 .empty-cart { color: #999; font-size: .86rem; }

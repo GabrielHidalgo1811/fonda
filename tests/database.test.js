@@ -150,5 +150,12 @@ test('Migración y reglas reales de PostgreSQL', async (t) => {
     assert.equal(after.totalOrders, before.totalOrders);
     const exported = (await db.query('select public.fiestas_sales_export() rows')).rows[0].rows;
     assert.ok(exported.some((row) => row.seller === 'Ajuste de caja' && row.total === -7100));
+    await db.exec(await readFile(new URL('../supabase/migrations/202609090002_product_subtractions.sql', import.meta.url), 'utf8'));
+    assert.equal((await snapshot()).totalRevenue, before.totalRevenue);
+    const subtraction = await operate('subtract', { payment: 'efectivo', seller: SELLER, items: [{ id: 'terremoto', qty: 1 }] });
+    assert.equal(subtraction.transaction.total, -4000);
+    assert.equal(subtraction.transaction.items[0].qty, -1);
+    assert.equal(subtraction.transaction.transaction_type, 'subtraction');
+    assert.equal((await snapshot()).totalOrders, before.totalOrders);
   });
 });

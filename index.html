@@ -114,9 +114,11 @@
             <p class="queue-subtitle">Las promociones de 2 por $7.000 se aplican automáticamente.</p>
             <div id="productsListContainer" class="product-list"></div>
           </section>
-          <section class="cart-summary-box">
+          <section id="cartSummaryBox" class="cart-summary-box">
             <div>
-              <div class="cart-title"><h2>Comanda actual</h2><button id="btnClearCart" class="btn-sub-minimal">Limpiar</button></div>
+              <div class="cart-title"><h2 id="cartModeTitle">Comanda actual</h2><button id="btnClearCart" class="btn-sub-minimal">Limpiar</button></div>
+              <button id="btnToggleSubtract" class="btn-subtract-mode">− Restar productos de caja</button>
+              <p id="subtractModeNote" class="subtract-mode-note" hidden>Modo resta activo: este movimiento quedará registrado con monto y cantidades negativas.</p>
               <div id="cartItemsList" class="cart-items-list"></div>
               <div id="saleStudentSection" hidden>
                 <div class="section-kicker">ESTUDIANTE</div>
@@ -142,7 +144,7 @@
               <select id="paymentMethod" class="form-input-minimal"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option></select>
             </div>
             <div>
-              <div class="cart-total-section"><div class="cart-total-row"><span>Total a pagar</span><span id="cartTotalAmount" class="cart-total-amount">$0</span></div></div>
+              <div class="cart-total-section"><div class="cart-total-row"><span id="cartTotalLabel">Total a pagar</span><span id="cartTotalAmount" class="cart-total-amount">$0</span></div></div>
               <button id="btnConfirmSale" class="btn-confirm-sale" data-write disabled>Confirmar venta</button>
             </div>
           </section>

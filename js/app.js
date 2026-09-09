@@ -3,10 +3,11 @@ import { cleanRUT, formatRUT, validateRUT } from './rutValidator.js';
 import { MAX_DRINKS, lineTotal } from './rules.js';
 
 const $ = (id) => document.getElementById(id);
-const money = (value) => '$' + Number(value).toLocaleString('es-CL');
+const money = (value) => (Number(value) < 0 ? '-$' : '$') + Math.abs(Number(value)).toLocaleString('es-CL');
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let busy = false;
 let cart = {};
+let subtractMode = false;
 let selectedTab = 'sales';
 let lastRut = '';
 let sellerName = '';
@@ -37,7 +38,7 @@ function writesEnabled() {
     button.disabled = busy || !cloud.connected || !!cloud.pending || button.dataset.blocked === 'true';
   });
   ['queueRutInput', 'saleRutInput', 'inputNewName', 'inputNewCarrera', 'paymentMethod',
-    'btnClearCart', 'btnNextStudent'].forEach((id) => { $(id).disabled = busy; });
+    'btnClearCart', 'btnToggleSubtract', 'btnNextStudent'].forEach((id) => { $(id).disabled = busy; });
   $('btnRetry').disabled = busy || !cloud.connected;
   document.querySelectorAll('[data-cart]').forEach((button) => {
     button.disabled = busy || !!cloud.pending || button.dataset.blocked === 'true';
@@ -152,15 +153,24 @@ function renderSales() {
   const drinks = items.reduce((sum, item) => sum + item.drinks * item.qty, 0);
   $('cartItemsList').innerHTML = items.length ? items.map((item) =>
     '<div class="cart-item-row"><span class="item-name">' + escape(item.name) + ' × ' + item.qty
-    + '</span><span class="item-total">' + money(lineTotal(item, item.qty)) + '</span></div>').join('')
+    + '</span><span class="item-total">' + money((subtractMode ? -1 : 1) * lineTotal(item, item.qty)) + '</span></div>').join('')
     : '<p class="empty-cart">Selecciona productos para comenzar la venta.</p>';
-  $('cartTotalAmount').textContent = money(items.reduce((sum, item) => sum + lineTotal(item, item.qty), 0));
-  $('saleStudentSection').hidden = drinks === 0;
+  const cartTotal = items.reduce((sum, item) => sum + lineTotal(item, item.qty), 0);
+  $('cartTotalAmount').textContent = money((subtractMode ? -1 : 1) * cartTotal);
+  $('cartTotalAmount').classList.toggle('negative-amount', subtractMode);
+  $('cartSummaryBox').classList.toggle('subtract-mode', subtractMode);
+  $('btnToggleSubtract').classList.toggle('active', subtractMode);
+  $('btnToggleSubtract').textContent = subtractMode ? 'Volver a registrar venta' : '− Restar productos de caja';
+  $('subtractModeNote').hidden = !subtractMode;
+  $('cartModeTitle').textContent = subtractMode ? 'Resta de caja' : 'Comanda actual';
+  $('cartTotalLabel').textContent = subtractMode ? 'Total a restar' : 'Total a pagar';
+  $('btnConfirmSale').textContent = subtractMode ? 'Registrar resta' : 'Confirmar venta';
+  $('saleStudentSection').hidden = subtractMode || drinks === 0;
   const rut = $('saleRutInput').value;
   const person = personByRut(rut);
   const valid = validateRUT(rut);
   const remaining = person ? Math.max(0, 3 - person.tragos) : 0;
-  const eligible = drinks === 0 || (valid && person && drinks <= remaining);
+  const eligible = subtractMode || drinks === 0 || (valid && person && drinks <= remaining);
   $('btnConfirmSale').dataset.blocked = String(!items.length || !eligible);
   $('salePersonCard').hidden = !person;
   $('saleRegisterForm').hidden = !valid || !!person;
@@ -177,7 +187,8 @@ function renderSales() {
   $('salesHistoryTableBody').innerHTML = data.transactions.length ? data.transactions.map((sale) =>
     '<tr><td>#' + sale.number + '</td><td>' + escape(new Date(sale.created_at).toLocaleString('es-CL'))
     + '</td><td>' + escape(sale.seller || 'Sin registro') + '</td><td>'
-    + escape(sale.items.map((i) => i.name + ' × ' + i.qty).join(', '))
+    + (sale.transaction_type === 'subtraction' ? '<span class="negative-amount">RESTA · </span>' : '')
+    + escape(sale.items.map((i) => i.name + ' × ' + Math.abs(i.qty)).join(', '))
     + '</td><td class="rut-col">' + escape(sale.rut ? formatRUT(sale.rut) : '—') + '</td><td>' + escape(sale.payment)
     + '</td><td><strong>' + money(sale.total) + '</strong></td></tr>').join('')
     : '<tr><td colspan="7">Aún no hay ventas confirmadas.</td></tr>';
@@ -203,10 +214,13 @@ async function runMutation(kind, payload) {
       $('formQuickRegister').reset();
       $('queueRutInput').value = formatRUT(result.person.rut);
       message('Estudiante registrado con ' + result.person.tragos + ' trago(s).');
-    } else if (kind === 'sale') {
+    } else if (kind === 'sale' || kind === 'subtract') {
       cart = {};
       $('saleRutInput').value = '';
-      message('Venta #' + result.transaction.number + ' guardada · ' + money(result.transaction.total) + '.');
+      if (kind === 'subtract') {
+        subtractMode = false;
+        message('Resta #' + result.transaction.number + ' guardada · ' + money(result.transaction.total) + '.');
+      } else message('Venta #' + result.transaction.number + ' guardada · ' + money(result.transaction.total) + '.');
     } else message('Trago registrado · ' + result.person.tragos + ' de 3.');
     if (result.limitReachedJustNow) openLimit(result.person);
   } catch (error) { message(error.message, true); }
@@ -301,7 +315,8 @@ $('btnDownloadSales').addEventListener('click', async () => {
     for (const sale of sales) rows.push([
       sale.seller || 'Sin registro',
       new Date(sale.created_at).toLocaleString('es-CL'),
-      sale.items.map((item) => item.name + ' × ' + item.qty).join(', '),
+      (sale.transaction_type === 'subtraction' ? 'RESTA · ' : '')
+        + sale.items.map((item) => item.name + ' × ' + Math.abs(item.qty)).join(', '),
       sale.total
     ]);
     const content = '\ufeff' + rows.map((row) => row.map(csvCell).join(';')).join('\r\n');
@@ -323,6 +338,12 @@ $('productsListContainer').addEventListener('click', (event) => {
   renderSales(); writesEnabled();
 });
 $('btnClearCart').addEventListener('click', () => { cart = {}; $('saleRutInput').value = ''; renderSales(); writesEnabled(); });
+$('btnToggleSubtract').addEventListener('click', () => {
+  subtractMode = !subtractMode;
+  $('saleRutInput').value = '';
+  message(subtractMode ? 'Selecciona los productos que necesitas descontar de caja.' : 'Modo venta activado.');
+  renderSales(); writesEnabled();
+});
 $('saleRutInput').addEventListener('input', () => {
   if (/^[0-9.kK\s-]*$/.test($('saleRutInput').value)) $('saleRutInput').value = formatRUT($('saleRutInput').value);
   renderSales(); writesEnabled();
@@ -348,7 +369,7 @@ $('saleRegisterForm').addEventListener('submit', async (event) => {
 });
 $('btnConfirmSale').addEventListener('click', () => {
   if ($('btnConfirmSale').disabled) return;
-  void runMutation('sale', { items: activeItems().map((item) => ({ id: item.id, qty: item.qty })),
+  void runMutation(subtractMode ? 'subtract' : 'sale', { items: activeItems().map((item) => ({ id: item.id, qty: item.qty })),
     rut: cleanRUT($('saleRutInput').value), payment: $('paymentMethod').value, seller: sellerName });
 });
 

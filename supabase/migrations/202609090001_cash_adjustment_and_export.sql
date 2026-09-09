@@ -31,7 +31,7 @@ begin
         from public.fiestas_sales cross join lateral jsonb_array_elements(items) item
         group by item->>'id') stat), '[]'::jsonb),
     'sellerStats', coalesce((select jsonb_agg(stat order by stat.revenue desc, stat.seller)
-      from (select s.seller, count(*) orders, sum(s.total) revenue,
+      from (select s.seller, count(*) filter (where s.transaction_type = 'sale') orders, sum(s.total) revenue,
         (select coalesce(sum((item->>'qty')::integer), 0) from public.fiestas_sales sx
           cross join lateral jsonb_array_elements(sx.items) item where sx.seller = s.seller) units
         from public.fiestas_sales s group by s.seller) stat), '[]'::jsonb),
@@ -42,7 +42,7 @@ begin
         group by s.seller, item->>'id') stat), '[]'::jsonb),
     'totalRevenue', (select coalesce(sum(total), 0) from public.fiestas_sales)
       - (select coalesce(sum(amount), 0) from public.fiestas_adjustments),
-    'totalOrders', (select count(*) from public.fiestas_sales),
+    'totalOrders', (select count(*) from public.fiestas_sales where transaction_type = 'sale'),
     'payments', (select coalesce(jsonb_object_agg(payment, amount), '{}'::jsonb) from (
       select payment, sum(amount) amount from (
         select payment, total amount from public.fiestas_sales
@@ -59,12 +59,12 @@ create or replace function public.fiestas_sales_export() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(row_data order by created_at), '[]'::jsonb)
   from (
-    select seller, created_at, items, total
+    select seller, created_at, items, total, transaction_type
     from public.fiestas_sales
     union all
     select 'Ajuste de caja' seller, created_at,
       jsonb_build_array(jsonb_build_object('name', reason, 'qty', 1)) items,
-      -amount total
+      -amount total, 'adjustment' transaction_type
     from public.fiestas_adjustments
   ) row_data;
 $$;
